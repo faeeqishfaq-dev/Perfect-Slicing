@@ -1,0 +1,2466 @@
+<USER_REQUEST>
+STOP MAKING SMALL PATCHES.
+
+The current game does not have the quality, polish, responsiveness,
+progression, reward flow or premium hyper-casual feel that I need.
+
+I have deeply analyzed a COMPLETE reference level frame-by-frame.
+
+YOU DO NOT HAVE ACCESS TO THAT VIDEO.
+
+Therefore the description below is the SOURCE OF TRUTH.
+
+Your task is to repair and polish the CURRENT Unity project until
+one complete level follows this gameplay rhythm and presentation
+very closely.
+
+IMPORTANT:
+Use the project's current/original assets or newly created original assets.
+Do not extract/copy proprietary source assets from another game.
+
+============================================================
+ABSOLUTE RULE
+============================================================
+
+DO NOT rebuild random systems from scratch without first inspecting
+what already exists.
+
+FIRST inspect the current project and determine:
+
+- current GameManager
+- LevelManager
+- TargetManager
+- FoodSpawner
+- FoodItem
+- SegmentedFood
+- KnifeController
+- KnifeInputController
+- ScoreManager
+- ComboManager
+- CoinManager
+- SaveManager
+- UIManager
+- completion presentation
+- fail flow
+- current LevelData
+- current food prefabs
+- current knife prefab
+- current URP materials
+- all related coroutines/events
+
+Preserve working systems.
+
+Fix broken systems at ROOT CAUSE.
+
+DO NOT finish with:
+- compiler errors
+- MissingReferenceException
+- NullReferenceException
+- Missing scripts
+- unassigned required references
+- pink URP materials
+- temporary placeholder logic
+
+============================================================
+REFERENCE LEVEL — HIGH LEVEL FLOW
+============================================================
+
+The complete desired flow is:
+
+LEVEL START
+↓
+slow comfortable conveyor movement
+↓
+player holds/taps to repeatedly slice food
+↓
+score increases immediately
+↓
+combo/multiplier builds
+↓
+conveyor gradually gets faster
+↓
+cutting becomes faster/more intense
+↓
+speed-line polish appears at high speed
+↓
+final required foods are completed
+↓
+normal food spawning stops
+↓
+special checkerboard pillow approaches FROM THE FAR END
+OF THE CUTTING LANE
+↓
+pillow reaches knife
+↓
+knife lands/rests on pillow
+↓
+large celebratory knife flip
+↓
+knife lands
+↓
+smaller second flip
+↓
+knife lands permanently
+↓
+colorful celebration streaks/confetti
+↓
+transition into cooking-result presentation
+↓
+pot appears
+↓
+cut food pieces pour from cutting board into pot
+↓
+board becomes empty and exits
+↓
+pot steams/glows
+↓
+reward/chef badge pops above pot
+↓
+optional UNLOCKED presentation
+↓
+final LEVEL COMPLETE panel
+↓
+large confetti celebration
+↓
+coin reward shown
+↓
+coin reward animation
+↓
+CLAIM / Next flow
+
+This is the required premium loop.
+
+============================================================
+1. FIX THE GAME STATE ARCHITECTURE FIRST
+============================================================
+
+Create/reuse ONE authoritative game state system.
+
+Required states:
+
+Initializing
+Playing
+Failing
+FinalTargetCompleting
+EndingApproach
+PillowCelebration
+CookingResult
+UnlockReward
+LevelComplete
+Paused
+
+Only Playing allows normal knife input and food spawning.
+
+Do NOT allow completion/fail routines to run simultaneously.
+
+Use guards:
+
+bool isCompleting;
+bool isFailing;
+
+CompleteLevel() must execute once.
+
+FailLevel() must execute once.
+
+============================================================
+2. GAMEPLAY MUST INITIALIZE CORRECTLY
+============================================================
+
+Main Menu
+→ Play
+→ Gameplay
+
+must ALWAYS work.
+
+Also:
+
+Replay
+Next
+Home → Play
+
+must work.
+
+At gameplay initialization:
+
+Time.timeScale = 1
+
+Clear previous runtime state.
+
+Load current LevelData.
+
+Reset:
+- score
+- multiplier
+- combo
+- target progress
+- overall progress
+- active foods
+- spawned-food tracking
+- fail state
+- completion state
+- completion presentation
+- pillow
+- pot sequence
+- panels
+
+Resolve the CURRENT LIVE ActiveKnife.
+
+Bind KnifeInputController to it.
+
+Initialize UI.
+
+Build spawn sequence.
+
+Then enter:
+
+GameState.Playing
+
+and start spawning.
+
+Do not reset saved purchases/progression.
+
+============================================================
+3. FIX ACTIVE KNIFE LIFETIME PERMANENTLY
+============================================================
+
+The project previously produced:
+
+MissingReferenceException:
+KnifeController has been destroyed but is still being accessed.
+
+This must NEVER return.
+
+There must be exactly one authoritative:
+
+ActiveKnife
+
+KnifeInputController must always reference that LIVE KnifeController.
+
+Do NOT keep stale references after:
+- scene load
+- Replay
+- Next
+- Home
+- knife selection
+- completion animation
+
+Create/reuse:
+
+SetActiveKnife(KnifeController knife)
+
+Whenever the knife changes:
+- unbind old reference
+- unsubscribe events
+- cancel its gameplay routines safely
+- assign new knife
+- bind input
+- validate it
+
+DO NOT solve this merely with:
+
+if (knife == null) return;
+
+Fix ownership.
+
+============================================================
+4. KNIFE GAMEPLAY MOTION — REFERENCE FEEL
+============================================================
+
+The reference knife is NOT moving freely around the screen.
+
+It remains in approximately the SAME gameplay screen area.
+
+The cutting lane/food moves toward it.
+
+The knife has:
+
+HANDLE:
+on the right / lower-right side.
+
+BLADE:
+extends diagonally toward left / upper-left.
+
+The handle side acts visually like the pivot.
+
+This must feel like a chef knife repeatedly rocking/chopping.
+
+============================================================
+IDLE KNIFE POSE
+============================================================
+
+During normal gameplay:
+
+knife remains visible.
+
+Blade:
+diagonal across the lane.
+
+Handle:
+right side.
+
+Knife should not disappear after a chop.
+
+The idle blade stays slightly above its actual contact/cutting depth.
+
+============================================================
+CUT MOTION
+============================================================
+
+When player presses/holds:
+
+knife performs a FAST downward rocking slice.
+
+Motion:
+
+Idle/raised diagonal
+→ fast downward rotation around handle/pivot
+→ blade crosses through food
+→ contact
+→ immediately returns toward ready position
+
+Do NOT animate it as:
+
+whole knife simply moving vertically like an elevator.
+
+The blade should rotate/rock.
+
+Pivot should visually remain near handle region.
+
+============================================================
+CUT SPEED
+============================================================
+
+Reference cutting is fast.
+
+Long foods can receive several cuts within roughly one second.
+
+Target starting values:
+
+attack phase:
+approximately 0.07 - 0.10 sec
+
+return phase:
+approximately 0.07 - 0.11 sec
+
+full cycle:
+approximately 0.15 - 0.20 sec
+
+These MUST remain Inspector adjustable.
+
+When holding input:
+repeat chop cycles continuously.
+
+When releasing:
+finish current safe chop and return to ready/idle pose.
+
+============================================================
+CUT ANIMATION CURVE
+============================================================
+
+Attack:
+
+very responsive
+fast ease-in / strong cut
+
+Return:
+
+slightly softer
+
+Do not use slow floaty movement.
+
+Use AnimationCurve.
+
+Expose:
+
+idlePosition
+idleRotation
+
+raisedPosition
+raisedRotation
+
+cutPosition
+cutRotation
+
+attackDuration
+returnDuration
+holdRepeatDelay
+
+attackPositionCurve
+attackRotationCurve
+
+returnPositionCurve
+returnRotationCurve
+
+============================================================
+KNIFE MOTION TRAIL
+============================================================
+
+Reference visibly reads as a fast blade swing.
+
+Use a subtle:
+- transparent knife trail
+OR
+- very short ghost/motion streak
+
+ONLY during high speed movement.
+
+It must disappear immediately after swing.
+
+Do not create giant glowing fantasy trails.
+
+============================================================
+5. INPUT STYLE
+============================================================
+
+Support:
+
+Mouse in Editor
+
+Touch on Android
+
+Primary desired interaction:
+
+PRESS/HOLD
+→ repeated slicing
+
+RELEASE
+→ knife returns to safe ready position
+
+Input must have almost no perceptible delay.
+
+Do not wait for long Animator transitions.
+
+============================================================
+6. CONVEYOR / FOOD MOVEMENT
+============================================================
+
+The knife is mostly screen-stable.
+
+Foods and obstacles approach from the FAR end of the white cutting lane.
+
+They travel toward the foreground/player.
+
+Use:
+
+speed * Time.deltaTime
+
+Never frame-dependent translation.
+
+============================================================
+7. REFERENCE SPEED PROGRESSION
+============================================================
+
+The reference DOES NOT begin at maximum speed.
+
+It deliberately builds intensity.
+
+The full active gameplay portion is roughly 27–28 seconds.
+
+I want a similar pacing.
+
+Use an Inspector AnimationCurve based on:
+
+normalizedLevelProgress
+
+0 = level start
+1 = final gameplay objective
+
+Suggested reference-like curve:
+
+0% - 20% progress:
+1.00x speed
+comfortable, slow introduction
+
+20% - 40%:
+around 1.12x - 1.20x
+
+40% - 60%:
+around 1.30x - 1.40x
+
+60% - 80%:
+around 1.50x - 1.60x
+
+80% - 100%:
+around 1.70x - 1.85x
+
+Do NOT make sudden speed jumps.
+
+Interpolate smoothly.
+
+============================================================
+REFERENCE SPEED FEEL
+============================================================
+
+Beginning:
+
+player has plenty of time to read food and cut.
+
+Middle:
+
+noticeably faster but comfortable.
+
+Last third:
+
+fast and exciting.
+
+Final section:
+
+high-energy slicing, strong sense of motion.
+
+Do not make Level 1 feel stressful immediately.
+
+============================================================
+8. SPEED-LINE VFX
+============================================================
+
+The reference gains visible speed-line streaks during later/high-speed gameplay.
+
+Add subtle screen/world speed lines.
+
+They should:
+
+- be almost invisible/disabled at low speed
+- gradually appear during faster phase
+- become clearer near final 25–30%
+- point in direction of movement
+- remain lightweight
+
+Do NOT cover food or UI.
+
+Expose:
+
+speedLineStartThreshold
+speedLineEmission
+speedLineLength
+speedLineAlpha
+
+============================================================
+9. FOOD SLICING MUST FEEL PHYSICAL
+============================================================
+
+Food must NOT:
+
+touch knife
+→ instantly disappear.
+
+The reference leaves many sliced segments visible behind/below the knife.
+
+Use pre-segmented mobile-friendly food.
+
+Examples:
+
+Cucumber:
+many circular green slices
+
+Eggplant:
+purple slices with pale interior
+
+Mushroom:
+recognizable broken/sliced pieces
+
+Other fruits/vegetables:
+appropriate recognizable segments
+
+============================================================
+CUT PIECE RESPONSE
+============================================================
+
+At each valid cut:
+
+1. segment visually separates
+2. small directional impulse
+3. slight rotation
+4. matching juice/crumb effect
+5. short cut sound
+6. score increments
+7. light haptic
+8. segment continues with conveyor / drops naturally
+9. eventually pooled
+
+No huge explosion.
+
+============================================================
+10. FOOD-SPECIFIC CUT VISUALS
+============================================================
+
+Each food must have:
+
+outer material
+interior/cut material
+particle color
+segment geometry
+cut sound category
+
+Example:
+
+Cucumber:
+dark/medium green skin
+pale green center
+
+Eggplant:
+purple outer skin
+cream interior
+
+Mushroom:
+white/cream cap/stem interior
+
+Do NOT make slice interiors use the same flat exterior material.
+
+============================================================
+11. FOOD SPAWNER MUST REMAIN BALANCED
+============================================================
+
+Do NOT return to the previous bug where one fruit repeats forever.
+
+Current active LevelData target types must all appear.
+
+While more than one target remains incomplete:
+
+do not spawn the same FoodType more than 2 times in a row.
+
+Use all active target foods.
+
+If required food is missed:
+spawn another opportunity later.
+
+Never let level become impossible.
+
+============================================================
+12. CURRENT TOP TARGET BARS MUST KEEP WORKING
+============================================================
+
+My current game uses individual target food bars at top.
+
+KEEP THEM.
+
+Each target has:
+
+FoodType
+CurrentAmount
+RequiredAmount
+
+Each bar:
+
+CurrentAmount / RequiredAmount
+
+Only the matching food updates that bar.
+
+Never artificially fill the bars.
+
+Never use spawner completion as level completion.
+
+============================================================
+13. MULTI-SLICE FOOD OBJECTIVE RULE
+============================================================
+
+Use:
+
+TargetCountMode
+
+CompletedFood
+IndividualSlice
+
+Default:
+
+CompletedFood
+
+For a multi-segment food:
+one physical item should report target progress only once after it
+reaches its defined completed state.
+
+Prevent duplicate target reporting.
+
+============================================================
+14. SCORE / POINT SYSTEM — CURRENTLY BROKEN
+============================================================
+
+FIX IT.
+
+Create/reuse ONE ScoreManager.
+
+Every valid food slice awards points.
+
+Formula:
+
+pointsEarned =
+baseSlicePoints * currentMultiplier
+
+If desired, individual segment scoring can occur for score,
+while target objective completion remains CompletedFood.
+
+These are separate systems.
+
+============================================================
+REFERENCE SCORE FEEL
+============================================================
+
+Reference score increases almost continuously while slicing.
+
+The visual response must be immediate.
+
+On score gain:
+
+- number updates
+- tiny scale punch
+- optional small floating score at cut
+- no delayed refresh
+
+Expose:
+
+baseSlicePoints
+perfectSliceBonus
+scorePunchScale
+scorePunchDuration
+
+============================================================
+15. COMBO / MULTIPLIER
+============================================================
+
+Reference builds:
+
+x1
+→ x2
+→ x3
+→ x4
+→ x5
+
+during successful continuous play.
+
+Do NOT simply show static multiplier text.
+
+Create/reuse ComboManager.
+
+Consecutive successful cuts add combo points.
+
+At thresholds:
+
+x1
+x2
+x3
+x4
+x5
+
+Multiplier should visually update.
+
+Reference pacing approximately reaches:
+- x2 fairly early
+- x3 around early/middle section
+- x4 around later middle
+- x5 during high-speed final portion
+
+Exact thresholds must remain tunable.
+
+============================================================
+COMBO FEEDBACK
+============================================================
+
+When multiplier upgrades:
+
+- multiplier badge/text pops
+- short positive sound
+- small VFX
+- subtle haptic
+
+At high streaks show short praise text such as:
+
+AWESOME!
+EXCELLENT!
+IDEAL!
+
+Do NOT spam it every single cut.
+
+============================================================
+16. MISS / OBSTACLE RESPONSE
+============================================================
+
+The reference lane contains wooden obstacles/blocks.
+
+Knife input must allow the player to stop chopping and avoid unsafe contact.
+
+Use proper obstacle layer:
+
+Obstacle
+
+When knife actively strikes a forbidden obstacle:
+
+trigger the project's intended penalty.
+
+If this project is designed for fail-on-obstacle:
+
+FailLevel(ObstacleHit)
+
+If LevelData config uses penalty instead:
+
+reset combo / reduce progress accordingly.
+
+Make this Inspector/data configurable:
+
+ObstacleHitMode:
+Fail
+ResetCombo
+ScorePenalty
+
+Do not hard-code different behavior throughout multiple scripts.
+
+============================================================
+17. LEVEL FAIL SYSTEM — CURRENTLY NOT WORKING
+============================================================
+
+Fix Level Fail completely.
+
+There must be ONE:
+
+FailLevel(FailReason reason)
+
+Guard:
+
+if game state != Playing
+    return
+
+Then:
+
+GameState = Failing
+
+stop spawner
+
+disable knife input
+
+stop progression
+
+stop combo updates
+
+stop score updates
+
+play short fail feedback
+
+show Fail Panel
+
+============================================================
+FAIL PANEL
+============================================================
+
+Must visibly appear above gameplay.
+
+Use:
+CanvasGroup
+correct sorting/order
+interactable buttons
+
+Suggested contents:
+
+LEVEL FAILED
+
+Retry
+Home
+
+Optional score display.
+
+No coin reward.
+
+Retry must restart current LevelData cleanly.
+
+Home returns Main Menu.
+
+============================================================
+IMPORTANT FAIL COROUTINE RULE
+============================================================
+
+Do NOT set:
+
+Time.timeScale = 0
+
+and then wait using normal:
+
+WaitForSeconds
+
+because that can permanently block panel animations.
+
+If TimeScale becomes zero:
+use unscaled animations / WaitForSecondsRealtime.
+
+Prefer not freezing TimeScale until necessary.
+
+============================================================
+18. LEVEL PROGRESS
+============================================================
+
+The reference also has a slim overall level progress indicator.
+
+If an overall progress bar currently exists:
+
+drive it from REAL level progress.
+
+Suggested:
+
+total completed target requirement /
+total required target requirement
+
+or current distance/progression if project architecture uses that.
+
+It must move continuously.
+
+Do not fake it with elapsed time alone.
+
+============================================================
+19. LEVEL COMPLETE CONDITION
+============================================================
+
+THIS IS NON-NEGOTIABLE.
+
+Normal level completes ONLY when:
+
+ALL active target objectives are complete.
+
+NOT when:
+- spawner queue ends
+- active food count reaches zero
+- time reaches arbitrary number
+- score reaches random threshold
+
+Example:
+
+Apple 5/5
+Banana 4/4
+Watermelon 2/3
+
+NOT COMPLETE.
+
+Only:
+
+Apple 5/5
+Banana 4/4
+Watermelon 3/3
+
+COMPLETE.
+
+============================================================
+20. FINAL BAR VISUAL MUST FINISH FIRST
+============================================================
+
+When final objective completes:
+
+update final bar.
+
+Let its visual animation visibly reach:
+
+100%
+
+Only THEN transition away from normal gameplay.
+
+Never start end sequence while target bar still looks incomplete.
+
+============================================================
+21. STOP NORMAL FOOD BEFORE END SEQUENCE
+============================================================
+
+At real completion:
+
+GameState = FinalTargetCompleting
+
+Immediately:
+
+stop future normal food spawns
+
+cancel pending spawn coroutine
+
+disable gameplay knife input
+
+prevent additional score/target counting
+
+allow/clean current slices
+
+remove remaining incoming normal foods cleanly
+
+Then begin the special final approach.
+
+============================================================
+22. SPECIAL PILLOW MUST APPROACH FROM FAR END
+============================================================
+
+This is an important correction.
+
+The reference pillow DOES NOT simply pop into existence next to the knife.
+
+After gameplay ends:
+
+spawn/show the checkerboard pillow at the FAR END
+of the cutting lane.
+
+It must travel down the SAME lane toward the player/knife.
+
+Reference-style timing:
+
+approximately 0.8 - 1.1 seconds
+from distant appearance to foreground arrival.
+
+It should naturally grow larger due perspective as it approaches.
+
+============================================================
+PILLOW APPEARANCE
+============================================================
+
+Create/use original ceremonial cushion:
+
+- square
+- thick/puffy
+- rounded sides
+- black/white checkerboard top
+- gold/yellow outer piping
+- small decorative gold corner tassels
+
+It should be large enough to comfortably hold the knife.
+
+Do NOT use a tiny cushion.
+
+At final position it should occupy approximately:
+30–40% of visible lane width.
+
+============================================================
+23. KNIFE LANDS ON PILLOW
+============================================================
+
+When pillow reaches the foreground knife zone:
+
+the currently selected REAL ActiveKnife transitions onto it.
+
+Final rest pose:
+
+blade points upper-left
+
+handle points lower-right
+
+knife lies diagonally across the pillow.
+
+Full knife remains visible.
+
+Pillow remains visible around knife.
+
+Do NOT make knife so large it completely covers pillow.
+
+Use separate Inspector value if necessary:
+
+completionKnifeScaleMultiplier
+
+Do not change gameplay knife scale globally.
+
+============================================================
+24. EXACT REFERENCE KNIFE CELEBRATION
+============================================================
+
+Once pillow has reached foreground:
+
+there are TWO deterministic knife flips.
+
+Do NOT use Rigidbody free physics.
+
+Do NOT use transform.forward translation.
+
+Use explicit arc control.
+
+============================================================
+FIRST LARGE FLIP
+============================================================
+
+Reference timing:
+roughly 0.45–0.55 sec.
+
+START:
+
+knife lies diagonally:
+
+blade upper-left
+handle lower-right.
+
+Then:
+
+knife lifts visibly UP from pillow.
+
+Its center travels:
+upward
+and slightly upper-right on the screen.
+
+At early rise:
+knife rotates toward vertical.
+
+Blade becomes approximately upward.
+
+Continue end-over-end rotation.
+
+At high apex:
+knife becomes near horizontal/slightly diagonal.
+
+It remains fully visible.
+
+Then it rotates through descending vertical orientation.
+
+It arcs DOWN.
+
+It lands EXACTLY back at KnifeRestPoint:
+
+blade upper-left
+handle lower-right.
+
+Use:
+
+KnifeRestPoint
+FirstFlipApex
+
+Bezier/curved path.
+
+============================================================
+FIRST FLIP APPROXIMATE REFERENCE RHYTHM
+============================================================
+
+Pillow reaches knife:
+~0.0 sec
+
+Readable rest:
+~0.15–0.25 sec
+
+First flip begins.
+
+Large flip:
+~0.5 sec
+
+Land.
+
+============================================================
+25. SECOND SMALLER FLIP
+============================================================
+
+After only a very short landing/rest:
+
+perform second flip.
+
+Reference second flip is:
+
+faster
+shorter
+lower
+
+Duration approximately:
+
+0.28–0.38 sec.
+
+Height:
+approximately 70–80% of first flip.
+
+Again:
+
+diagonal rest
+→ lift upper-right
+→ rotate
+→ smaller apex
+→ descend
+→ SAME final diagonal rest
+
+Use:
+
+SecondFlipApex
+
+Do NOT create another knife.
+
+Use the same ActiveKnife.
+
+============================================================
+26. PILLOW CELEBRATION PARTICLES
+============================================================
+
+Immediately after final knife landing:
+
+trigger celebration streaks.
+
+Reference style:
+
+multiple thin bright vertical streaks shoot upward
+around LEFT and RIGHT of pillow.
+
+Also small confetti shapes.
+
+Colors:
+yellow
+cyan
+blue
+green
+orange
+
+No smoke.
+
+No giant explosion.
+
+No missing pink material.
+
+Duration roughly:
+
+0.8 - 1.1 sec.
+
+Keep pillow + knife readable.
+
+============================================================
+27. TRANSITION TO COOKING RESULT SEQUENCE
+============================================================
+
+This is currently missing from my game and is a major reason
+it does not feel premium.
+
+After pillow celebration:
+
+transition smoothly to the cooking/result presentation.
+
+Do NOT immediately show Level Complete panel.
+
+The reference inserts an entire reward/cooking sequence first.
+
+============================================================
+28. COOKING RESULT SCENE/PRESENTATION
+============================================================
+
+Use the same scene or a dedicated presentation root.
+
+The runway gameplay composition gives way to a clean green
+background/result stage.
+
+Camera remains stable and presentation-focused.
+
+Create:
+
+CookingResultPresentation
+├── Pot
+├── SoupSurface
+├── SteamVFX
+├── ResultCuttingBoard
+├── ResultKnife
+├── IngredientContainer
+├── RewardBadge
+└── ResultVFX
+
+Prefer reusing current knife visual where appropriate.
+
+============================================================
+29. POT PRESENTATION
+============================================================
+
+A gray/metal stylized cooking pot appears around lower-middle screen.
+
+Features:
+
+- wide pot
+- two side handles
+- orange soup/liquid inside
+- subtle highlight
+- small glow/sparkle under pot
+- light steam
+
+It must look polished and readable.
+
+============================================================
+30. INGREDIENT BOARD ABOVE POT
+============================================================
+
+A small white cutting board appears ABOVE and slightly behind the pot.
+
+It is tilted toward the pot.
+
+All the sliced food pieces collected during the level are visually
+represented on this board.
+
+The knife is visible around the upper edge of the board.
+
+This creates the feeling:
+
+"everything I cut during gameplay is now being cooked."
+
+============================================================
+31. FOOD POURING ANIMATION
+============================================================
+
+Reference duration:
+roughly 2.0–2.5 sec.
+
+Animate board tilt so ingredients slide/fall into pot.
+
+Do NOT dump everything in one frame.
+
+Food pieces should fall in staggered groups.
+
+Sequence:
+
+Board initially contains many visible cut ingredients.
+
+↓
+Board tilts more toward pot.
+
+↓
+front pieces slide off first.
+
+↓
+several pieces tumble/fall with slight rotations.
+
+↓
+middle pieces fall.
+
+↓
+last remaining pieces slide into pot.
+
+↓
+pot becomes visibly filled with colorful ingredients.
+
+Use deterministic/simple physics or controlled arcs.
+
+Keep mobile performance safe.
+
+============================================================
+INGREDIENT DROP FEEDBACK
+============================================================
+
+For some pieces:
+
+small pot bounce/plop
+
+tiny splash/soup ripple
+
+light sound
+
+No huge splash.
+
+============================================================
+32. BOARD EXITS AFTER EMPTYING
+============================================================
+
+After all ingredient pieces enter pot:
+
+the white result cutting board becomes empty.
+
+Then board moves smoothly:
+
+upward / upper-right away from pot
+
+and exits/hides.
+
+Do not abruptly deactivate in place.
+
+Knife leaves with board if appropriate to presentation.
+
+============================================================
+33. COOKED POT POLISH
+============================================================
+
+Now pot remains centered.
+
+Orange soup visible.
+
+Different ingredient pieces visible in soup.
+
+Add:
+
+soft looping steam wisps.
+
+Small subtle glow beneath pot.
+
+Tiny cooking shimmer.
+
+No excessive VFX.
+
+============================================================
+34. REWARD / CHEF BADGE
+============================================================
+
+After board exits:
+
+a small circular reward/chef icon pops up ABOVE the pot.
+
+Reference appearance:
+
+- orange circular smiling food/chef-style badge
+- white chef hat
+- floating above pot
+
+Animate:
+
+scale 0
+→ overshoot around 1.1
+→ settle 1.0
+
+Then slight hover.
+
+Pot continues steaming.
+
+Duration before next UI:
+roughly 1.5–2.0 sec.
+
+============================================================
+35. OPTIONAL UNLOCKED REWARD PRESENTATION
+============================================================
+
+The reference level then shows an:
+
+UNLOCKED!
+
+presentation.
+
+Make this data-driven.
+
+LevelData should have something like:
+
+bool hasUnlockReward
+UnlockRewardData unlockReward
+
+If true:
+
+show unlock screen.
+
+If false:
+
+skip directly to Level Complete.
+
+For the reference/sample level:
+
+ENABLE IT.
+
+============================================================
+36. UNLOCKED SCREEN STYLE
+============================================================
+
+When unlock begins:
+
+dim the background significantly.
+
+Keep pot faintly visible behind.
+
+Across the TOP:
+a bright green horizontal header strip.
+
+Centered white bold uppercase text:
+
+UNLOCKED!
+
+Below center:
+large unlocked item icon/model.
+
+Reference level:
+a carrot-like ingredient/reward icon.
+
+Make it pop in:
+
+scale 0.65
+→ 1.10
+→ 1.00
+
+Add faint radial light/glow behind item.
+
+Bottom/under reward:
+
+small rounded green:
+
+OK
+
+button
+
+with white outline/text.
+
+============================================================
+37. UNLOCK SCREEN INPUT
+============================================================
+
+OK must work.
+
+On OK:
+
+mark unlock as saved.
+
+Prevent duplicate unlock.
+
+Then transition into the FINAL Level Complete reward panel.
+
+============================================================
+38. LEVEL COMPLETE PANEL — CURRENTLY NOT SHOWING
+============================================================
+
+Fix this at ROOT CAUSE.
+
+Inspect:
+
+- SetActive state
+- CanvasGroup alpha
+- parent activation
+- sorting order
+- coroutine chain
+- timeScale
+- blocked WaitForSeconds
+- button hierarchy
+- event call
+- duplicate panels
+- state guard
+
+There must be a guaranteed call path:
+
+Completion Presentation Finished
+→ ShowLevelCompletePanel()
+
+============================================================
+IMPORTANT TIMESCALE RULE
+============================================================
+
+If Time.timeScale == 0:
+
+normal WaitForSeconds will stall.
+
+UI animations and final sequence should use:
+
+unscaled time
+
+or keep TimeScale at 1 while result presentation runs.
+
+Do not let the Level Complete panel coroutine silently freeze.
+
+============================================================
+39. FINAL LEVEL COMPLETE PANEL — REFERENCE STYLE
+============================================================
+
+Reference final screen:
+
+BACKGROUND:
+game/result background strongly dimmed.
+
+TOP:
+bright green full-width banner.
+
+Large centered bold uppercase white:
+
+LEVEL
+COMPLETE!
+
+or:
+
+LEVEL COMPLETE!
+
+Use a strong casual-game font style.
+
+============================================================
+CENTER OBJECT
+============================================================
+
+The cooked pot remains centered around middle/lower-middle.
+
+It is still visible behind reward.
+
+Above/on pot show reward:
+
++35
+coin icon
+
+For this sample/reference LevelData:
+
+rewardCoins = 35
+
+Make reward value Inspector/data driven.
+
+============================================================
+CLAIM BUTTON
+============================================================
+
+Below pot/reward:
+
+green rounded button
+
+white outline
+
+white text:
+
+CLAIM
+
+Button is clearly visible and interactable.
+
+============================================================
+40. FINAL LEVEL COMPLETE CONFETTI
+============================================================
+
+The final panel contains MUCH stronger celebration than pillow stage.
+
+Create:
+
+- continuous colorful confetti falling from upper screen
+- large curled streamer ribbons
+- energetic left/right celebration jets
+- colorful rectangular pieces
+
+Colors:
+yellow
+blue
+cyan
+green
+red
+orange
+purple
+
+The confetti should fill much of the screen
+without hiding the main reward/button.
+
+============================================================
+41. COIN BURST ON LEVEL COMPLETE
+============================================================
+
+Reference shows multiple gold coin visuals emerging around/from pot.
+
+Create pooled coin reward VFX.
+
+After panel appears:
+
+small delay
+↓
+coins burst out around pot
+↓
+some arc upward then fall
+↓
+reward remains readable
+
+Do not Instantiate hundreds permanently.
+
+Use pooling.
+
+============================================================
+42. COIN SYSTEM — CURRENTLY BROKEN
+============================================================
+
+Fix actual economy.
+
+Use ONE CoinManager / SaveManager authority.
+
+Separate:
+
+Gameplay Score
+
+from:
+
+Persistent Coins
+
+They are NOT the same currency.
+
+============================================================
+LEVEL REWARD
+============================================================
+
+LevelData:
+
+rewardCoins = 35
+
+Final panel displays:
+
++35
+
+Do not add coins repeatedly every frame.
+
+Use a guard:
+
+rewardClaimed = false
+
+On CLAIM:
+
+if rewardClaimed:
+    return
+
+rewardClaimed = true
+
+AddCoins(rewardCoins)
+
+Save.
+
+Animate displayed persistent coin balance.
+
+============================================================
+NO DUPLICATE REWARD
+============================================================
+
+Replay must not accidentally grant a completed reward multiple times
+from old callbacks.
+
+Clicking Claim repeatedly must not duplicate currency.
+
+============================================================
+43. OPTIONAL COIN FLY ANIMATION
+============================================================
+
+On Claim:
+
+several visual coin sprites/3D coins fly from pot/reward area
+toward coin HUD.
+
+Then persistent coin counter increments with count-up animation.
+
+Use:
+unscaled time
+object pooling.
+
+============================================================
+44. SCORE VS COINS
+============================================================
+
+SCORE:
+
+earned continuously during slicing.
+
+Shown during gameplay.
+
+Can reset each level.
+
+COINS:
+
+persistent currency.
+
+Earned/rewarded at completion.
+
+Saved between sessions.
+
+Do not mix them.
+
+============================================================
+45. NEXT FLOW
+============================================================
+
+After claim:
+
+show/enable Next
+
+or use current project's desired button flow.
+
+Next must:
+
+save current level completion
+
+increment unlocked level
+
+stop/end current presentation
+
+clear pot/result objects
+
+clear active food
+
+hide all completion UI
+
+reset completion guards
+
+load next LevelData
+
+reset score/targets/combo
+
+restore knife gameplay pose
+
+restart spawner
+
+Time.timeScale = 1
+
+============================================================
+46. REPLAY FLOW
+============================================================
+
+Replay must:
+
+reset SAME current level
+
+No old:
+- food
+- score
+- bars
+- combo
+- pillow
+- pot
+- confetti
+- panel
+- stale knife callback
+
+Gameplay starts fresh.
+
+============================================================
+47. FAIL FLOW MUST ALSO RESET CLEANLY
+============================================================
+
+Fail:
+
+stop normal game
+show Fail Panel
+
+Retry:
+clean reset.
+
+Home:
+Main Menu.
+
+No completion rewards on fail.
+
+No cooking sequence on fail.
+
+============================================================
+48. HIGH-END GAME FEEL
+============================================================
+
+The current project feels like a prototype.
+
+I need a polished hyper-casual production feel.
+
+Add restrained polish to EVERY important action.
+
+============================================================
+ON EVERY VALID CUT
+============================================================
+
+Use:
+
+- crisp knife motion
+- very short knife whoosh
+- food-specific slice SFX
+- small juice/crumb particle
+- slight piece separation
+- subtle haptic
+- score pop
+- optional 0.01–0.03 sec hit feedback
+
+Do NOT freeze game for a noticeable amount.
+
+============================================================
+COMBO TIER UP
+============================================================
+
+Use:
+
+- multiplier scale punch
+- positive audio sting
+- mild particle accent
+- short haptic
+
+============================================================
+HIGH SPEED
+============================================================
+
+Use:
+
+- subtle speed streaks
+- slightly more energetic SFX
+- stronger motion trail
+- no uncontrollable camera movement
+
+============================================================
+49. CAMERA FEEDBACK
+============================================================
+
+Normal camera stays stable.
+
+Use only very subtle micro feedback.
+
+Valid strong cut:
+very tiny impulse.
+
+Obstacle/fail:
+slightly stronger short impact.
+
+End sequences:
+camera mostly fixed exactly like reference.
+
+Do NOT create constant camera shake.
+
+============================================================
+50. SOUND DESIGN
+============================================================
+
+Create/wire AudioManager categories:
+
+KnifeWhoosh
+VegetableSlice
+FruitSlice
+SoftFoodSlice
+BoardImpact
+ObstacleImpact
+ComboUp
+Praise
+SpeedIncrease
+PillowArrive
+KnifeFlipWhoosh
+KnifePillowLand
+CelebrationPop
+IngredientDrop
+PotPlop
+CookingSteam
+RewardPop
+Unlock
+LevelComplete
+CoinBurst
+CoinCollect
+ButtonClick
+Fail
+
+If final audio assets do not exist:
+wire properly named AudioClip slots.
+
+Do NOT leave broken AudioSource references.
+
+============================================================
+51. HAPTICS
+============================================================
+
+Add optional haptic feedback:
+
+normal cut:
+light
+
+combo up:
+medium
+
+obstacle:
+strong
+
+pillow landing:
+light
+
+Level Complete:
+medium
+
+coin claim:
+light burst
+
+Respect global haptic toggle.
+
+============================================================
+52. UI POLISH
+============================================================
+
+No debug-looking tiny UI.
+
+All UI:
+
+portrait-safe
+readable
+anchored
+smooth
+correct scale
+
+Buttons:
+
+subtle press down:
+1.0 → 0.94
+
+release:
+0.94 → 1.03 → 1.0
+
+============================================================
+53. URP MATERIAL VALIDATION
+============================================================
+
+The project is URP.
+
+Every particle/VFX material must be URP compatible.
+
+There must be ZERO pink/magenta materials.
+
+Check:
+
+juice
+board impact
+speed lines
+pillow celebration
+cooking VFX
+steam
+unlock glow
+level complete confetti
+coin particles
+
+============================================================
+54. OBJECT POOLING
+============================================================
+
+Use pooling for:
+
+food
+food pieces
+juice particles
+floating score
+confetti if repeated
+coin reward VFX
+
+Avoid constant heavy Instantiate/Destroy.
+
+============================================================
+55. INSPECTOR TUNING — MANDATORY
+============================================================
+
+Expose organized settings.
+
+------------------------------------------------------------
+GAMEPLAY SPEED
+------------------------------------------------------------
+
+baseConveyorSpeed
+maxConveyorSpeed
+speedByLevelProgressCurve
+speedSmoothing
+
+------------------------------------------------------------
+KNIFE
+------------------------------------------------------------
+
+idlePosition
+idleRotation
+cutPosition
+cutRotation
+attackDuration
+returnDuration
+attackCurve
+returnCurve
+holdRepeatInterval
+completionKnifeScale
+
+------------------------------------------------------------
+CUTTING
+------------------------------------------------------------
+
+pieceSeparationForce
+pieceTorque
+pieceLifetime
+juiceAmount
+hitFeedbackDuration
+
+------------------------------------------------------------
+SCORE
+------------------------------------------------------------
+
+baseSliceScore
+perfectBonus
+multiplierThresholds
+maxMultiplier
+scorePunch
+
+------------------------------------------------------------
+PILLOW ENDING
+------------------------------------------------------------
+
+pillowApproachDuration
+pillowFinalPosition
+
+KnifeRestPoint
+FirstFlipApex
+SecondFlipApex
+
+firstFlipDuration
+firstFlipSpin
+firstFlipCurve
+
+secondFlipDuration
+secondFlipSpin
+secondFlipCurve
+
+pillowCelebrationDuration
+
+------------------------------------------------------------
+COOKING RESULT
+------------------------------------------------------------
+
+resultTransitionDuration
+ingredientDropDuration
+boardTiltCurve
+ingredientDropDelay
+boardExitDuration
+steamAmount
+rewardBadgeDuration
+
+------------------------------------------------------------
+UNLOCK
+------------------------------------------------------------
+
+unlockPopDuration
+unlockGlow
+unlockButton
+
+------------------------------------------------------------
+LEVEL COMPLETE
+------------------------------------------------------------
+
+levelCompletePanel
+panelEnterDuration
+finalConfettiDuration
+coinBurstDelay
+rewardCoins
+
+All must be adjustable without editing code.
+
+============================================================
+56. REFERENCE PACING TARGET
+============================================================
+
+For the sample/reference level, aim approximately for:
+
+NORMAL GAMEPLAY:
+27–30 seconds for a competent player.
+
+PILLOW APPROACH:
+~0.9 sec
+
+PILLOW / KNIFE REST:
+~0.2 sec
+
+FIRST LARGE FLIP:
+~0.5 sec
+
+SHORT REST:
+~0.1 sec
+
+SECOND SMALL FLIP:
+~0.3 sec
+
+PILLOW CONFETTI:
+~0.9–1.1 sec
+
+COOKING / FOOD POUR:
+~2.2–2.6 sec
+
+POT / REWARD BADGE:
+~1.5–2.0 sec
+
+UNLOCK PRESENTATION:
+user-controlled OK if this level has unlock
+
+FINAL LEVEL COMPLETE:
+persistent until player action
+
+Do not rush these.
+
+============================================================
+57. IMPORTANT REFERENCE VISUAL RHYTHM
+============================================================
+
+The reason the reference feels polished is that it has FOUR distinct
+emotional phases:
+
+PHASE 1:
+calm slicing introduction
+
+PHASE 2:
+increasing speed and multiplier
+
+PHASE 3:
+high-speed satisfying final slicing
+
+PHASE 4:
+multi-stage reward celebration
+
+My game must reproduce this rhythm.
+
+Do not make gameplay the same speed from start to finish.
+
+Do not immediately throw up a Level Complete panel.
+
+============================================================
+58. COMPLETION EVENT CHAIN
+============================================================
+
+The final event architecture must be:
+
+Food successfully sliced
+↓
+Food logic processes segment
+↓
+ScoreManager awards points
+↓
+ComboManager updates multiplier
+↓
+TargetManager updates correct objective if applicable
+↓
+Target UI updates
+↓
+AreAllTargetsComplete?
+
+NO:
+continue gameplay
+
+YES:
+↓
+wait final UI fill to finish
+↓
+GameState = FinalTargetCompleting
+↓
+stop normal spawning
+↓
+clean final gameplay food
+↓
+spawn pillow at far end
+↓
+pillow approaches foreground
+↓
+ActiveKnife rests on pillow
+↓
+first large flip
+↓
+land
+↓
+second smaller flip
+↓
+land
+↓
+pillow celebration VFX
+↓
+CookingResultPresentation
+↓
+ingredient pieces pour into pot
+↓
+board exits
+↓
+steam + reward badge
+↓
+if LevelData.hasUnlock:
+show UNLOCKED panel
+↓
+OK
+↓
+ShowLevelCompletePanel
+↓
+final confetti
+↓
+coin burst
+↓
+show +rewardCoins
+↓
+CLAIM
+
+============================================================
+59. LEVEL COMPLETE PANEL MUST NEVER SILENTLY FAIL
+============================================================
+
+Before finalizing, explicitly validate:
+
+levelCompletePanel reference != null
+
+Canvas parent active
+
+panel GameObject active
+
+CanvasGroup alpha reaches 1
+
+blocksRaycasts = true
+
+interactable = true where required
+
+panel sorting order above gameplay
+
+ShowLevelCompletePanel() actually executes
+
+completion coroutine does not stop early
+
+no destroyed object reference breaks the sequence
+
+TimeScale does not freeze the routine
+
+============================================================
+60. FINAL PLAY MODE TEST — REQUIRED
+============================================================
+
+Do NOT finish based only on code compiling.
+
+Actually Play the complete level.
+
+TEST 1:
+Main Menu → Play.
+
+Gameplay starts.
+
+TEST 2:
+At beginning:
+conveyor speed feels slow and controlled.
+
+TEST 3:
+Hold input.
+
+Knife rapidly chops/rocks around handle pivot.
+
+TEST 4:
+Release.
+
+Knife returns cleanly to safe idle.
+
+TEST 5:
+Slice long food.
+
+Multiple visible segments remain.
+
+TEST 6:
+Score increases after every valid scoring cut.
+
+TEST 7:
+Multiplier progresses:
+x1 → x2 → x3 → x4 → x5.
+
+TEST 8:
+Multiplier affects score.
+
+TEST 9:
+Later level is visibly faster than start.
+
+TEST 10:
+High-speed stage has subtle speed lines.
+
+TEST 11:
+Individual top target bars work correctly.
+
+TEST 12:
+Keep one target incomplete.
+
+NO level complete.
+
+TEST 13:
+Complete all targets.
+
+Final bar visibly reaches 100%.
+
+TEST 14:
+Normal food spawning stops.
+
+TEST 15:
+Pillow appears FAR down lane.
+
+TEST 16:
+Pillow moves toward foreground like normal lane object.
+
+TEST 17:
+Real knife rests diagonally on pillow.
+
+TEST 18:
+First large flip plays.
+
+Knife remains in camera.
+
+TEST 19:
+Second smaller flip plays.
+
+Knife returns to same rest pose.
+
+TEST 20:
+Pillow celebration streaks/confetti play.
+
+TEST 21:
+Cooking result starts.
+
+Pot visible.
+
+TEST 22:
+Board above pot contains sliced food.
+
+TEST 23:
+Food pieces progressively fall into pot.
+
+TEST 24:
+Empty board exits.
+
+TEST 25:
+Pot steams.
+
+Reward/chef badge appears above pot.
+
+TEST 26:
+If unlock configured:
+UNLOCKED panel appears.
+
+OK works.
+
+TEST 27:
+LEVEL COMPLETE panel ALWAYS appears.
+
+TEST 28:
+Final confetti is large and celebratory.
+
+TEST 29:
++35 coin reward displays for sample level.
+
+TEST 30:
+Coin burst animation works.
+
+TEST 31:
+CLAIM adds exactly 35 persistent coins ONCE.
+
+TEST 32:
+Replay works.
+
+TEST 33:
+Next works.
+
+TEST 34:
+Home → Play works.
+
+TEST 35:
+Trigger intended fail condition.
+
+LEVEL FAILED panel appears.
+
+Retry works.
+
+TEST 36:
+Console:
+
+ZERO compiler errors
+ZERO NullReferenceException
+ZERO MissingReferenceException
+ZERO broken/pink shaders.
+
+============================================================
+61. STRICT DO-NOT-DO LIST
+============================================================
+
+DO NOT:
+
+- make a generic prototype
+- leave one constant movement speed
+- make knife movement slow/floaty
+- translate whole knife straight down only
+- move knife freely along screen during gameplay
+- instantly delete sliced food
+- repeatedly spawn one fruit while multiple targets remain
+- fake progress bars
+- win when spawn queue ends
+- immediately show Level Complete after final slice
+- skip pillow approach
+- pop pillow directly beside knife
+- move end knife forward out of camera
+- use uncontrolled Rigidbody knife flips
+- skip cooking/pot animation
+- skip reward badge
+- silently skip Level Complete panel
+- mix gameplay score and persistent coins
+- grant reward repeatedly
+- freeze UI coroutine with Time.timeScale = 0
+- leave pink URP particles
+- break current working target logic
+- leave Inspector references unassigned
+
+============================================================
+62. PRIORITY ORDER
+============================================================
+
+DO THE WORK IN THIS ORDER:
+
+1. Stabilize GameState lifecycle.
+2. Stabilize ActiveKnife lifecycle.
+3. Fix ScoreManager.
+4. Fix CoinManager/persistent economy.
+5. Fix target progress and completion condition.
+6. Fix FailLevel + Fail panel.
+7. Rebuild knife gameplay movement/pivot feel.
+8. Implement speed progression curve.
+9. Polish slicing segments/VFX/audio.
+10. Add high-speed effects/combo polish.
+11. Fix final target handoff.
+12. Implement pillow approach from distance.
+13. Implement exact two knife flips.
+14. Implement pillow celebration.
+15. Implement cooking pot result sequence.
+16. Implement ingredient pouring.
+17. Implement reward badge.
+18. Implement optional UNLOCKED panel.
+19. Fix Level Complete panel permanently.
+20. Implement final confetti + coin burst.
+21. Fix Claim reward.
+22. Test Replay/Next/Home.
+23. Test fail flow.
+24. Run complete Play Mode validation.
+
+DO NOT REPORT THE TASK COMPLETE UNTIL THE WHOLE LEVEL CAN BE PLAYED
+FROM START TO FINAL CLAIM WITHOUT ERRORS AND WITH A POLISHED,
+HIGH-END HYPER-CASUAL FEEL.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-15T15:11:06+05:00.
+</ADDITIONAL_METADATA>

@@ -1,0 +1,2117 @@
+<USER_REQUEST>
+IMPORTANT:
+
+Below I am giving you the COMPLETE visual behavior, timing, positions, sequence and movement that must be reproduced.
+
+At the same time, several serious gameplay bugs currently exist.
+
+FIX ALL OF THEM.
+
+Do NOT rebuild the entire project.
+Do NOT change unrelated working systems.
+Do NOT stop after fixing only one issue.
+
+========================================================
+CURRENT CRITICAL BUGS
+========================================================
+
+BUG 1:
+Every time I try to cut with the knife, Unity throws:
+
+MissingReferenceException:
+The object of type 'KnifeController' has been destroyed but you are still trying to access it.
+
+Your script should either check if it is null or you should not destroy the object.
+
+Stack trace:
+
+UnityEngine.MonoBehaviour.StartCoroutine(...)
+FoodSlicer.KnifeController.ExecuteChop()
+Assets/_FoodSlicer/Scripts/Knife/KnifeController.cs:214
+
+FoodSlicer.KnifeController.HandleChopPressed()
+Assets/_FoodSlicer/Scripts/Knife/KnifeController.cs:195
+
+FoodSlicer.KnifeInputController.Update()
+Assets/_FoodSlicer/Scripts/Knife/KnifeInputController.cs:73
+
+BUG 2:
+The top fruit objective progress bars do not fill correctly.
+
+BUG 3:
+The win animation begins while the top target bars are still incomplete.
+
+BUG 4:
+Fruits are still approaching from the back when the win animation starts.
+
+BUG 5:
+The current win knife animation is completely wrong.
+
+The knife moves straight forward/deeper into the scene and leaves the camera.
+
+BUG 6:
+I need the exact completion animation described later in this prompt.
+
+========================================================
+PART 1
+FIX THE DESTROYED KNIFE CONTROLLER ERROR AT ROOT CAUSE
+========================================================
+
+DO NOT solve this only by adding:
+
+if (knife == null)
+    return;
+
+That only hides the problem.
+
+Find WHY KnifeInputController still has a reference to a destroyed KnifeController.
+
+Inspect:
+
+KnifeController.cs
+KnifeInputController.cs
+GameManager
+KnifeManager if present
+LevelManager
+Gameplay initialization
+selected knife spawning
+knife replacement
+Main Menu -> Gameplay flow
+Replay
+Next Level
+Home
+completion animation
+all scene loading logic
+
+Search project-wide for:
+
+Destroy(
+DestroyImmediate(
+KnifeController
+ActiveKnife
+selectedKnife
+SpawnKnife
+Instantiate knife
+
+Determine exactly when the old knife gets destroyed.
+
+========================================================
+ONE ACTIVE KNIFE ONLY
+========================================================
+
+There must be exactly ONE authoritative runtime knife reference.
+
+Architecture should behave approximately like:
+
+KnifeManager
+    └── ActiveKnife
+            ↓
+      KnifeInputController
+
+KnifeInputController must always send input to the CURRENT live ActiveKnife.
+
+Create/reuse a proper method such as:
+
+SetActiveKnife(KnifeController newKnife)
+
+Whenever a knife is created or changed:
+
+1. Stop sending input to old knife.
+2. Unsubscribe old knife callbacks/events.
+3. Safely stop old knife gameplay coroutines.
+4. Clear old active reference.
+5. Destroy old object only if replacement is actually needed.
+6. Spawn/find currently selected knife.
+7. Assign it as ActiveKnife.
+8. Bind KnifeInputController to that live KnifeController.
+9. Enable gameplay input.
+
+Never keep a stale destroyed KnifeController reference.
+
+========================================================
+DO NOT DESTROY ACTIVE KNIFE DURING LEVEL
+========================================================
+
+The currently selected knife MUST remain alive:
+
+- while slicing
+- when a fruit completes
+- when progress changes
+- when target objective finishes
+- when FoodSpawner stops
+- during end animation
+- while resting on the pillow
+
+The SAME real gameplay knife will be used for the final celebration animation.
+
+Do NOT destroy it and spawn a fake knife.
+
+========================================================
+EVENT SUBSCRIPTIONS
+========================================================
+
+Inspect KnifeController and related scripts for:
+
+static events
+delegates
+input events
+level events
+scene events
+
+If something subscribes like:
+
+SomeEvent += HandleSomething;
+
+it must unsubscribe correctly in:
+
+OnDisable()
+and/or
+OnDestroy()
+
+Destroyed KnifeControllers must never remain subscribed.
+
+========================================================
+COROUTINE OWNERSHIP
+========================================================
+
+The current error happens at:
+
+StartCoroutine
+
+inside KnifeController.ExecuteChop().
+
+Fix lifecycle correctly.
+
+KnifeInputController must never call ExecuteChop on an object that was destroyed.
+
+Track active knife coroutine if needed:
+
+Coroutine chopRoutine;
+
+During level completion:
+
+DO NOT destroy KnifeController.
+
+Instead create/reuse something such as:
+
+PrepareForCompletion()
+
+This method should:
+
+- disable new chop input
+- safely cancel/finish active chop coroutine
+- disable normal knife procedural movement
+- disable slice hit detection
+- keep KnifeController GameObject alive
+- allow CompletionPresentation controller to animate its Transform
+
+========================================================
+PART 2
+FIX THE TOP THREE FRUIT TARGET PROGRESS BARS
+========================================================
+
+The top HUD contains three target food icons.
+
+Each icon has its own progress bar underneath.
+
+THESE BARS MUST ACTUALLY REPRESENT GAME OBJECTIVES.
+
+Example level:
+
+Apple required:
+4
+
+Banana required:
+5
+
+Watermelon required:
+3
+
+Initial state:
+
+Apple:
+0 / 4
+bar = 0%
+
+Banana:
+0 / 5
+bar = 0%
+
+Watermelon:
+0 / 3
+bar = 0%
+
+========================================================
+INDEPENDENT PROGRESS
+========================================================
+
+If player completes one Apple:
+
+Apple:
+1 / 4
+bar = 25%
+
+Banana stays:
+0%
+
+Watermelon stays:
+0%
+
+If player then completes one Banana:
+
+Banana:
+1 / 5
+bar = 20%
+
+Apple must NOT change.
+
+Every target must maintain its own progress.
+
+========================================================
+TARGET DATA
+========================================================
+
+Use one authoritative structure similar to:
+
+TargetObjective
+{
+    FoodType foodType;
+    int requiredAmount;
+    int currentAmount;
+    TargetSlotUI slotUI;
+}
+
+TargetManager owns these values.
+
+TargetSlotUI must NOT independently calculate gameplay state.
+
+It only visualizes:
+
+CurrentAmount / RequiredAmount
+
+========================================================
+VALID TARGET EVENT FLOW
+========================================================
+
+The exact logic should be:
+
+Knife makes a real successful slice
+↓
+FoodItem processes it
+↓
+FoodItem determines whether this event counts toward objective
+↓
+FoodType is sent to TargetManager
+↓
+TargetManager locates matching TargetObjective
+↓
+CurrentAmount increases exactly once
+↓
+CurrentAmount is clamped to RequiredAmount
+↓
+Matching TargetSlotUI updates
+↓
+TargetManager checks whether all objectives are complete
+
+========================================================
+CRITICAL:
+MULTI-SLICE FOOD MUST NOT PREMATURELY COMPLETE TARGET
+========================================================
+
+Objects such as:
+
+Banana
+Carrot
+Bread
+long vegetables
+some cakes
+
+can have multiple segments.
+
+One physical Banana must NOT accidentally count:
+
++1
++1
++1
++1
+
+every time one segment gets removed,
+
+unless the LevelData explicitly says this is a slice-count objective.
+
+Create/use:
+
+TargetCountMode
+{
+    CompletedFood,
+    IndividualSlice
+}
+
+DEFAULT:
+
+CompletedFood
+
+Example:
+
+Banana object requires 3 cuts.
+
+Cut 1:
+remove segment.
+Do not report completed Banana.
+
+Cut 2:
+remove next segment.
+Do not duplicate objective.
+
+Cut 3:
+food reaches completed sliced state.
+Report ONE Banana completion.
+
+Use something similar to:
+
+bool objectiveProgressReported;
+
+so the same FoodItem cannot count twice.
+
+========================================================
+TARGET BAR VISUAL SETUP
+========================================================
+
+Inspect each target UI bar.
+
+If using:
+
+UnityEngine.UI.Image.fillAmount
+
+the Image component MUST be:
+
+Type = Filled
+
+not:
+
+Simple
+
+Set correct:
+
+Fill Method
+Fill Origin
+Fill Direction
+
+Normalized value:
+
+float progress =
+Mathf.Clamp01(
+    (float)currentAmount / requiredAmount
+);
+
+Animate visually:
+
+oldProgress
+→ newProgress
+
+Recommended duration:
+
+0.15 - 0.25 seconds
+
+Expose in Inspector:
+
+progressAnimationDuration
+
+========================================================
+TARGET COMPLETION
+========================================================
+
+When target is complete:
+
+CurrentAmount = RequiredAmount
+
+Visual:
+
+fillAmount = 1.0 exactly.
+
+It stays full.
+
+Do NOT reset until Next Level or Replay.
+
+Optional:
+
+small target icon punch animation when reaching 100%.
+
+Do not replace the existing visual design unnecessarily.
+
+========================================================
+PART 3
+REMOVE ALL PREMATURE WIN CONDITIONS
+========================================================
+
+The game currently begins the win sequence too early.
+
+THIS MUST BE FIXED.
+
+Search ENTIRE project for every path calling:
+
+CompleteLevel
+LevelComplete
+TriggerWin
+Win
+FinishLevel
+OnLevelFinished
+ShowLevelComplete
+OnSequenceComplete
+OnSpawnerFinished
+
+There must be ONE primary completion condition.
+
+========================================================
+CORRECT LEVEL WIN CONDITION
+========================================================
+
+For these normal target levels:
+
+THE LEVEL IS COMPLETE ONLY WHEN EVERY ACTIVE TARGET
+HAS:
+
+CurrentAmount >= RequiredAmount
+
+Example:
+
+Apple:
+4 / 4
+
+Banana:
+5 / 5
+
+Watermelon:
+2 / 3
+
+RESULT:
+
+NOT COMPLETE.
+
+No pillow.
+
+No animation.
+
+No Level Complete panel.
+
+No input lock.
+
+No win VFX.
+
+Only when:
+
+Apple:
+4 / 4
+
+Banana:
+5 / 5
+
+Watermelon:
+3 / 3
+
+may completion start.
+
+========================================================
+SPAWNER END MUST NOT MEAN LEVEL WIN
+========================================================
+
+Remove any logic similar to:
+
+spawn sequence empty
+→ CompleteLevel();
+
+This is WRONG.
+
+FoodSpawner finishing its preset list does NOT mean the player completed the objectives.
+
+Also do not automatically win because:
+
+- activeFood.Count == 0
+- score reached arbitrary value
+- timer elapsed
+- spawn list finished
+- one target finished
+
+unless LevelData specifically uses another objective mode.
+
+========================================================
+PART 4
+MAKE SURE ENOUGH FRUITS SPAWN
+========================================================
+
+Another problem is that targets may require more fruit than exists in the sequence.
+
+Validate the level.
+
+If level requires:
+
+Apple x4
+Banana x5
+Watermelon x3
+
+there must be enough valid objects to obtain:
+
+4 Apples
+5 Bananas
+3 Watermelons.
+
+If the normal sequence ends while objectives are incomplete:
+
+DO NOT WIN.
+
+Continue spawning missing target types.
+
+Example:
+
+Apple = 4/4
+Banana = 5/5
+Watermelon = 2/3
+
+Spawn sequence ended.
+
+Expected behavior:
+
+spawn at least another Watermelon opportunity.
+
+The game must remain completable.
+
+========================================================
+PART 5
+DO NOT START WIN BEFORE FINAL BAR VISUALLY FILLS
+========================================================
+
+Very important.
+
+When the final target internally reaches requirement:
+
+DO NOT immediately start pillow/knife animation in the same frame.
+
+Required sequence:
+
+Final target event occurs
+↓
+CurrentAmount reaches RequiredAmount
+↓
+TargetSlotUI begins filling
+↓
+bar visually reaches 100%
+↓
+all target bars visibly show full
+↓
+THEN begin completion sequence
+
+Wait approximately:
+
+progressAnimationDuration
+
+before changing into completion presentation.
+
+I want the player to clearly SEE all three top bars completely filled.
+
+========================================================
+PART 6
+STOP ALL FRUITS BEFORE END ANIMATION
+========================================================
+
+Once all REAL objectives are complete:
+
+Immediately set:
+
+isCompleting = true
+
+This state must prevent duplicate calls.
+
+Then:
+
+1. Stop FoodSpawner.
+2. Cancel pending spawn coroutine.
+3. Prevent new food objects.
+4. Disable normal player knife input.
+5. Stop target progress changes.
+6. Stop combo/score changes.
+7. Clean remaining incoming food.
+8. Only after cutting area is clean, start pillow animation.
+
+========================================================
+FRUIT CLEANUP
+========================================================
+
+There must NOT be fruits moving behind the end animation.
+
+Use a short cleanup around:
+
+0.3 - 0.5 sec.
+
+Remaining gameplay fruit may:
+
+- smoothly continue toward despawn quickly
+OR
+- gently shrink/fade and return to pool
+
+Do not explode all food.
+
+Do not leave them passing through the pillow.
+
+Before the pillow animation begins:
+
+the cutting area must visually be clean.
+
+========================================================
+PART 7
+EXACT END-OF-LEVEL REFERENCE ANIMATION
+========================================================
+
+THIS SECTION REPLACES THE VIDEO.
+
+FOLLOW THIS DESCRIPTION EXACTLY.
+
+The reference animation is approximately 2.1 seconds long.
+
+The camera remains FIXED.
+
+The cutting board remains visible.
+
+A decorative pillow/cushion is positioned near the center/lower-center of the visible board.
+
+The REAL currently selected knife performs TWO distinct flips above this pillow.
+
+After the second flip, the knife rests diagonally on the pillow.
+
+Only then celebration particles/confetti appear.
+
+========================================================
+REFERENCE PILLOW VISUAL
+========================================================
+
+Create an original pillow closely matching this structure:
+
+Shape:
+
+- square cushion
+- thick and soft
+- slightly inflated/puffy
+- rounded cushion sides
+- viewed in board perspective
+
+TOP PATTERN:
+
+black-and-white checkerboard pattern.
+
+Approximately alternating square patches.
+
+The pillow should very clearly look like a checkerboard cushion.
+
+EDGE:
+
+gold/yellow piping around the outside perimeter.
+
+CORNERS:
+
+small gold decorative tassels hanging from each corner.
+
+The pillow should look premium and ceremonial.
+
+Do not use a flat plane.
+
+Do not use a plain cube.
+
+========================================================
+PILLOW SCREEN POSITION
+========================================================
+
+Pillow appears approximately around:
+
+horizontal center of cutting board
+
+and:
+
+lower-middle / center region of screen.
+
+It must be completely visible.
+
+It should occupy roughly:
+
+30-40% of visible board width.
+
+It must NOT be far away near the horizon.
+
+It must NOT appear directly against the camera.
+
+========================================================
+REFERENCE KNIFE REST POSE
+========================================================
+
+This pose is extremely important because the knife repeatedly returns to it.
+
+When resting on the cushion:
+
+BLADE:
+
+points diagonally toward UPPER-LEFT.
+
+HANDLE:
+
+points diagonally toward LOWER-RIGHT.
+
+The knife lies across the pillow.
+
+Approximate screen orientation:
+
+45-degree diagonal.
+
+More precisely:
+
+blade tip toward approximately:
+10 o'clock direction.
+
+handle toward approximately:
+4 o'clock direction.
+
+The full blade and handle must remain visible.
+
+The blade lies slightly elevated above the cushion surface so no visual clipping occurs.
+
+This is called:
+
+KnifeRestPose
+
+Create:
+
+KnifeRestPoint
+
+on the pillow.
+
+KnifeRestPoint includes:
+
+POSITION
+ROTATION
+SCALE if required
+
+Do not calculate rest location using arbitrary world forward.
+
+========================================================
+FIRST FRAME / INTRO
+========================================================
+
+At the beginning of the sequence:
+
+pillow is already/quickly becoming visible on the board.
+
+The knife settles diagonally onto it in the reference rest pose:
+
+blade upper-left
+handle lower-right.
+
+Pillow may perform a very small entrance pop:
+
+Scale:
+
+0.85
+→ 1.04
+→ 1.00
+
+Duration approximately:
+
+0.15 - 0.20 sec.
+
+Do NOT make the pillow fly in from far away.
+
+========================================================
+PHASE A
+INITIAL KNIFE REST
+TIME APPROX. 0.00 - 0.35 sec
+========================================================
+
+Knife is visible lying diagonally across pillow.
+
+Blade is centered across the upper-left half of pillow.
+
+Handle extends toward lower-right edge.
+
+There is a short readable resting moment.
+
+The knife must NOT disappear.
+
+========================================================
+PHASE B
+FIRST LARGE FLIP
+TIME APPROX. 0.35 - 0.80 sec
+========================================================
+
+This is the largest and most noticeable movement.
+
+START:
+
+Knife begins at:
+
+KnifeRestPoint
+
+with:
+
+blade upper-left
+handle lower-right.
+
+========================================================
+FIRST FLIP TAKEOFF
+========================================================
+
+Knife starts lifting from pillow.
+
+It does NOT move straight forward into world Z.
+
+It rises visually UPWARD on the SCREEN.
+
+The center of knife makes an ARC around the pillow.
+
+The movement should initially travel:
+
+upward
+and slightly toward upper-right.
+
+While rising:
+
+the knife rotates strongly.
+
+========================================================
+FIRST FLIP ORIENTATION KEYFRAME 1
+========================================================
+
+Shortly after takeoff:
+
+the knife turns toward an almost VERTICAL screen orientation.
+
+Blade points upward.
+
+Handle points downward.
+
+The knife is located above/right of pillow center.
+
+Broad side of blade must remain visible.
+
+========================================================
+FIRST FLIP ORIENTATION KEYFRAME 2
+========================================================
+
+At the highest part of the first arc:
+
+knife is in the UPPER-RIGHT region above the pillow.
+
+It becomes approximately HORIZONTAL/SLIGHTLY DIAGONAL across screen.
+
+At this moment:
+
+handle is more toward left/lower-left
+
+blade extends toward right/upper-right
+
+depending on knife model orientation.
+
+The important reference behavior:
+
+knife is clearly suspended high above the cushion
+and is nearly sideways/horizontal.
+
+This is the highest apex of the first flip.
+
+========================================================
+FIRST FLIP ORIENTATION KEYFRAME 3
+========================================================
+
+As knife crosses the apex and returns:
+
+rotation continues.
+
+The knife passes through another nearly vertical orientation.
+
+Now the blade points downward toward pillow.
+
+The handle is toward upper area.
+
+This must look like the knife is performing an
+END-OVER-END celebratory flip.
+
+========================================================
+FIRST FLIP LANDING
+========================================================
+
+Knife arcs back DOWN toward pillow.
+
+It returns to EXACTLY the original diagonal rest pose:
+
+blade:
+upper-left
+
+handle:
+lower-right
+
+The landing position should match KnifeRestPoint.
+
+It does not land at a random new angle.
+
+========================================================
+FIRST FLIP TRAJECTORY
+========================================================
+
+Think of it visually as:
+
+                  ______ KNIFE APEX
+                /                  \
+               /                    \
+              /                      \
+       REST -------------------------------- REST
+             PILLOW
+
+Not:
+
+REST --------------------> far Z position
+
+The movement is:
+
+ARC UP
+ROTATE
+ARC DOWN
+LAND
+
+========================================================
+FIRST FLIP IMPLEMENTATION
+========================================================
+
+Use deterministic procedural animation.
+
+DO NOT use uncontrolled Rigidbody physics.
+
+Preferred:
+
+quadratic/cubic Bezier trajectory
+plus controlled Quaternion rotation.
+
+Create:
+
+FirstFlipApex
+
+as an explicit Transform above and slightly right of pillow.
+
+Path:
+
+KnifeRestPoint
+→ FirstFlipApex
+→ KnifeRestPoint
+
+Expose:
+
+firstFlipDuration
+
+Default approximately:
+
+0.45 - 0.50 sec
+
+Expose:
+
+firstFlipHeight
+firstFlipHorizontalOffset
+firstFlipCurve
+firstFlipRotationCurve
+
+========================================================
+PHASE C
+FIRST LANDING REST
+APPROX. 0.80 - 1.00 sec
+========================================================
+
+After first flip:
+
+knife lies diagonally on pillow again.
+
+Do NOT immediately launch second flip.
+
+Give approximately:
+
+0.15 - 0.20 sec
+
+of visible rest.
+
+Use very subtle landing settle:
+
+position:
+slightly below/above target
+→ target
+
+rotation:
+few degrees overshoot
+→ exact rest
+
+Pillow may compress extremely slightly:
+
+Scale Y:
+
+1.00
+→ 0.97
+→ 1.00
+
+Do not exaggerate.
+
+========================================================
+PHASE D
+SECOND FLIP
+APPROX. 1.00 - 1.40 sec
+========================================================
+
+The reference then performs a SECOND celebratory toss.
+
+This second toss is:
+
+- shorter than first
+- faster
+- lower amplitude
+- still clearly visible
+
+START:
+
+same KnifeRestPose.
+
+========================================================
+SECOND FLIP MOVEMENT
+========================================================
+
+Knife lifts again from cushion.
+
+It travels mostly:
+
+upward
+and toward upper-right.
+
+During the second flip:
+
+knife rotates again end-over-end.
+
+Around the middle/high point:
+
+knife is visibly floating above/right of pillow.
+
+It should reach roughly:
+
+70-80% of first flip's height.
+
+Do NOT make the second toss as large as first.
+
+========================================================
+SECOND FLIP KEYFRAMES
+========================================================
+
+Start:
+
+diagonal on pillow
+blade upper-left
+handle lower-right.
+
+During rise:
+
+knife becomes diagonal/vertical.
+
+At apex:
+
+knife becomes more horizontal in upper-right region.
+
+During descent:
+
+knife continues rotation.
+
+It approaches pillow from upper-left/upper-middle direction.
+
+Then returns to diagonal rest.
+
+========================================================
+SECOND FLIP DURATION
+========================================================
+
+Approximately:
+
+0.30 - 0.40 seconds.
+
+Create:
+
+SecondFlipApex
+
+separate from FirstFlipApex.
+
+SecondFlipApex should be:
+
+lower
+and slightly closer to pillow.
+
+Path:
+
+KnifeRestPoint
+→ SecondFlipApex
+→ KnifeRestPoint
+
+========================================================
+PHASE E
+FINAL LANDING
+APPROX. 1.35 - 1.50 sec
+========================================================
+
+Knife returns to pillow permanently.
+
+FINAL POSE MUST BE:
+
+blade:
+upper-left
+
+handle:
+lower-right.
+
+Knife lies diagonally across checkerboard pillow.
+
+It must remain completely visible.
+
+No more large knife movement after this.
+
+Use tiny final settle only.
+
+========================================================
+PHASE F
+CELEBRATION PARTICLES
+APPROX. 1.50 - 2.10 sec
+========================================================
+
+Immediately AFTER final landing:
+
+start celebration effects.
+
+Reference behavior:
+
+multiple tall bright colorful streaks rise vertically behind/around the pillow.
+
+They look like:
+
+thin celebratory light strips
+plus small confetti pieces.
+
+Colors include:
+
+yellow
+cyan
+blue
+orange
+green-ish highlights
+
+They originate:
+
+from left and right sides
+around/behind pillow.
+
+They shoot upward.
+
+They must NOT cover the entire knife.
+
+The knife and pillow stay clearly readable.
+
+========================================================
+CONFETTI DESIGN
+========================================================
+
+Use:
+
+small rectangular pieces
+small diamond pieces
+thin vertical streak particles.
+
+Movement:
+
+mostly upward.
+
+Some mild side spread.
+
+No violent radial explosion.
+
+No smoke.
+
+No giant fireworks.
+
+No pink missing-material particles.
+
+Duration:
+
+approximately 0.6 - 0.7 sec.
+
+========================================================
+CAMERA BEHAVIOR DURING ENTIRE SEQUENCE
+========================================================
+
+Camera remains essentially stationary.
+
+DO NOT:
+
+follow knife
+rotate camera
+zoom strongly
+move camera forward
+move camera backward
+tilt with knife
+
+The animation is produced by movement of:
+
+pillow
+knife
+particles
+
+not by camera movement.
+
+========================================================
+CRITICAL:
+KEEP THE KNIFE IN CAMERA
+========================================================
+
+Every keyframe must remain visible.
+
+Use:
+
+Camera.WorldToViewportPoint()
+
+for validation.
+
+For all flip anchors:
+
+Viewport Z > 0
+
+Keep knife center roughly inside:
+
+X = 0.10 to 0.90
+
+Y = 0.15 to 0.88
+
+Do NOT use these viewport values as direct movement coordinates.
+
+Use them only to validate anchor placement.
+
+========================================================
+ABSOLUTELY DO NOT USE:
+transform.forward
+========================================================
+
+Current animation appears to use a forward translation.
+
+That is why the knife leaves the camera.
+
+For the celebration animation:
+
+NEVER use:
+
+transform.position += transform.forward * distance;
+
+NEVER use:
+
+Vector3.forward * distance
+
+as the primary path.
+
+Use explicit anchors:
+
+KnifeRestPoint
+FirstFlipApex
+SecondFlipApex
+
+========================================================
+WORLD SPACE / LOCAL SPACE FIX
+========================================================
+
+Check for incorrect mixing of:
+
+localPosition
+position
+
+and:
+
+localRotation
+rotation.
+
+This could also explain why knife travels far away.
+
+Recommended completion animation:
+
+knifeRoot.position
+→ anchor.position
+
+knifeRoot.rotation
+→ anchor.rotation
+
+all consistently in WORLD SPACE.
+
+If knife is temporarily reparented:
+
+use:
+
+SetParent(completionRig, true)
+
+to preserve its current world transform.
+
+Then keep animation calculations consistent.
+
+========================================================
+KNIFE ROTATION IMPLEMENTATION
+========================================================
+
+Do not simply use:
+
+Quaternion.Lerp(startRotation, endRotation)
+
+with the same start/end rest rotation,
+
+because that will not visually perform a full flip.
+
+Add a controlled additional rotational spin.
+
+Create Inspector settings:
+
+firstFlipSpinDegrees
+secondFlipSpinDegrees
+
+Use values around a full end-over-end turn,
+then visually tune to reference.
+
+The blade broad face should remain visible for most of the animation.
+
+Avoid long moments where the knife becomes only a thin edge.
+
+========================================================
+COMPLETION RIG HIERARCHY
+========================================================
+
+Create/reuse:
+
+LevelCompletePresentation
+└── CompletionRig
+    ├── Pillow
+    │   └── KnifeRestPoint
+    ├── FirstFlipApex
+    ├── SecondFlipApex
+    ├── ConfettiLeft
+    ├── ConfettiRight
+    └── CelebrationVFX
+
+All references must already be assigned in Inspector.
+
+========================================================
+USE REAL CURRENT KNIFE
+========================================================
+
+VERY IMPORTANT:
+
+Do not create another fake visual knife.
+
+Use:
+
+ActiveKnife
+
+that the player was using.
+
+Flow:
+
+ActiveKnife
+↓
+PrepareForCompletion()
+↓
+disable its gameplay control
+↓
+CompletionPresentation receives its transform
+↓
+animate REAL selected knife
+↓
+return it to Pillow rest point
+
+KnifeController stays alive.
+
+========================================================
+SLICE DETECTOR
+========================================================
+
+During completion animation:
+
+disable:
+
+Knife SliceDetector
+food hit detection
+board impact detection
+
+Otherwise the flying knife may accidentally trigger:
+
+cuts
+score
+particles
+board hit effects.
+
+Re-enable on next gameplay start.
+
+========================================================
+PART 8
+LEVEL COMPLETE PANEL TIMING
+========================================================
+
+Do NOT show Level Complete panel before this celebration is finished.
+
+Required exact order:
+
+Final target completed
+↓
+final progress bar visually fills to 100%
+↓
+all three target bars visibly full
+↓
+stop gameplay
+↓
+clean incoming fruit
+↓
+pillow appears
+↓
+initial knife rest
+↓
+FIRST LARGE FLIP
+↓
+first landing
+↓
+short rest
+↓
+SECOND SMALLER FLIP
+↓
+final knife landing
+↓
+confetti/streak celebration
+↓
+short delay
+↓
+Level Complete panel appears
+
+========================================================
+LEVEL COMPLETE PANEL ANIMATION
+========================================================
+
+Use existing Level Complete panel.
+
+Do not redesign it unnecessarily.
+
+Animate:
+
+CanvasGroup alpha:
+0 → 1
+
+and:
+
+scale:
+0.88
+→ 1.04
+→ 1.00
+
+or use existing polished slide animation if available.
+
+Buttons:
+
+Next
+Replay
+Home
+
+must remain non-interactable until panel entrance is complete.
+
+========================================================
+APPROXIMATE FULL TIMELINE
+========================================================
+
+Use this as the timing baseline:
+
+0.00 - 0.20 sec
+Pillow introduction / initial settle
+
+0.20 - 0.35 sec
+Knife readable on pillow
+
+0.35 - 0.80 sec
+FIRST LARGE FLIP
+
+0.80 - 1.00 sec
+Knife lands and rests
+
+1.00 - 1.38 sec
+SECOND SMALLER FLIP
+
+1.38 - 1.50 sec
+Final knife settle
+
+1.50 - 2.10 sec
+Confetti / celebration streaks
+
+around 2.10 - 2.25 sec
+Level Complete panel starts entering
+
+All timing fields must remain adjustable in Inspector.
+
+========================================================
+INSPECTOR VALUES
+========================================================
+
+Expose:
+
+[Header("Completion Animation")]
+
+Pillow
+KnifeRestPoint
+FirstFlipApex
+SecondFlipApex
+
+pillowAppearDuration
+
+initialRestDuration
+
+firstFlipDuration
+firstFlipHeight
+firstFlipHorizontalOffset
+firstFlipSpinDegrees
+firstFlipPositionCurve
+firstFlipRotationCurve
+
+firstLandingDuration
+firstRestDuration
+
+secondFlipDuration
+secondFlipHeight
+secondFlipHorizontalOffset
+secondFlipSpinDegrees
+secondFlipPositionCurve
+secondFlipRotationCurve
+
+finalSettleDuration
+
+confettiDuration
+
+panelDelay
+
+LevelCompletePanel
+
+Everything must be adjustable without editing code.
+
+========================================================
+PART 9
+RESET NEXT LEVEL CORRECTLY
+========================================================
+
+When pressing NEXT:
+
+1. Stop completion coroutine.
+2. Stop all confetti particles.
+3. Hide pillow.
+4. Hide Level Complete panel.
+5. Restore knife parent if changed.
+6. Restore knife gameplay position.
+7. Restore knife gameplay rotation.
+8. Re-enable SliceDetector.
+9. Re-enable KnifeController.
+10. Bind KnifeInputController to valid ActiveKnife.
+11. Clear old active food.
+12. Reset target CurrentAmount.
+13. Reset all top target bars to zero.
+14. Reset left progression/combo meter.
+15. Reset multiplier.
+16. Reset completion guard.
+17. Load new LevelData.
+18. Set new target icons.
+19. Set new required target amounts.
+20. Restart FoodSpawner.
+21. Enable gameplay input.
+22. Ensure Time.timeScale = 1.
+
+========================================================
+REPLAY
+========================================================
+
+Replay must perform the same runtime cleanup but reload the SAME LevelData.
+
+No old target progress.
+
+No old celebration state.
+
+No destroyed knife reference.
+
+========================================================
+HOME -> MAIN MENU -> PLAY
+========================================================
+
+Test this carefully.
+
+Gameplay
+→ Home
+→ Main Menu
+→ Play
+→ Gameplay
+→ use knife
+
+Expected:
+
+KnifeController is live.
+
+NO MissingReferenceException.
+
+If a DontDestroyOnLoad manager keeps KnifeController:
+
+clear scene-specific knife reference when Gameplay unloads.
+
+When Gameplay loads again:
+
+rebind the newly created/current ActiveKnife.
+
+========================================================
+PART 10
+GAMEPLAY COMPLETION STATE MACHINE
+========================================================
+
+Do not let these systems fight each other.
+
+Use a clean state flow similar to:
+
+Playing
+
+→ FinalTargetUIFilling
+
+→ CleaningGameplay
+
+→ PillowIntro
+
+→ FirstKnifeFlip
+
+→ KnifeRest
+
+→ SecondKnifeFlip
+
+→ FinalKnifeRest
+
+→ Celebration
+
+→ ShowingCompletePanel
+
+→ Completed
+
+During anything except Playing:
+
+normal knife input must be disabled.
+
+========================================================
+NO DUPLICATE COMPLETE EVENTS
+========================================================
+
+Use a guard such as:
+
+bool isCompleting;
+
+Before completion starts:
+
+if (isCompleting)
+    return;
+
+isCompleting = true;
+
+Only ONE completion coroutine/presentation may run.
+
+No duplicate:
+
+pillow
+knife animation
+confetti
+panel.
+
+========================================================
+PART 11
+LEFT PROGRESSION BAR
+========================================================
+
+Also verify the left-side gameplay progress/combo meter still works.
+
+Every valid successful target slice/completion according to current scoring rules should update the left meter.
+
+Multiplier and vertical meter must remain synchronized.
+
+Example:
+
+x1
+→ x2
+→ x3
+
+according to configured thresholds.
+
+Do not use this left combo meter as the LEVEL WIN CONDITION.
+
+Target objectives at the top control level completion.
+
+========================================================
+PART 12
+FRUIT SPEED / NORMAL GAMEPLAY
+========================================================
+
+Do not increase fruit speed while fixing this.
+
+Keep current corrected slower casual gameplay speed.
+
+Fruits must provide enough reaction time.
+
+All movement:
+
+speed * Time.deltaTime
+
+Do not let completion fixes accidentally double the FoodMover speed.
+
+========================================================
+PART 13
+FINAL EVENT CHAIN
+========================================================
+
+The final architecture must behave like:
+
+KnifeInputController
+↓
+CURRENT LIVE ActiveKnife
+↓
+KnifeController ExecuteChop
+↓
+valid FoodItem cut
+↓
+FoodItem updates segmented state
+↓
+valid objective event created exactly once
+↓
+TargetManager receives FoodType
+↓
+matching CurrentAmount increments
+↓
+matching TargetSlotUI animates
+↓
+AreAllTargetsComplete?
+
+IF NO:
+continue Gameplay.
+
+IF YES:
+↓
+wait final target bar animation
+↓
+all target bars visibly 100%
+↓
+set isCompleting
+↓
+stop FoodSpawner
+↓
+disable knife input
+↓
+clean remaining food
+↓
+PrepareForCompletion on SAME LIVE KNIFE
+↓
+Pillow intro
+↓
+Knife rest
+↓
+FIRST LARGE ARC FLIP
+↓
+knife rest
+↓
+SECOND SMALLER ARC FLIP
+↓
+final diagonal rest on pillow
+↓
+confetti
+↓
+Level Complete panel
+
+========================================================
+MANDATORY PLAY MODE VALIDATION
+========================================================
+
+DO NOT claim completion before testing all of these.
+
+TEST 1
+
+Launch from Main Menu.
+
+Press Play.
+
+Cut food repeatedly.
+
+Expected:
+
+ZERO:
+
+MissingReferenceException:
+KnifeController has been destroyed
+
+========================================================
+TEST 2
+
+Confirm:
+
+KnifeInputController's target KnifeController
+
+is the EXACT same live component attached to:
+
+ActiveKnife.
+
+========================================================
+TEST 3
+
+Cut one target Apple.
+
+Only Apple's top progress bar changes.
+
+========================================================
+TEST 4
+
+Cut Banana.
+
+Only Banana progress changes.
+
+========================================================
+TEST 5
+
+Test segmented food.
+
+If objective mode is CompletedFood:
+
+one physical fruit reports objective only once when it is completed.
+
+========================================================
+TEST 6
+
+Create state:
+
+Target A = 100%
+Target B = 100%
+Target C = 66%
+
+Expected:
+
+NO win.
+
+Fruits continue.
+
+Knife works.
+
+No pillow.
+
+========================================================
+TEST 7
+
+Allow normal spawn queue to finish while target C is incomplete.
+
+Expected:
+
+NO win.
+
+Game provides missing required fruit opportunity.
+
+========================================================
+TEST 8
+
+Complete final target.
+
+Expected:
+
+its visual bar smoothly reaches exactly 100%.
+
+All three bars must visibly be full BEFORE win sequence.
+
+========================================================
+TEST 9
+
+Once completion begins:
+
+NO new fruits appear.
+
+Existing fruit is cleaned.
+
+========================================================
+TEST 10
+
+Pillow appears around middle/lower-middle of cutting board.
+
+It remains completely visible.
+
+========================================================
+TEST 11
+
+Knife is initially resting diagonally:
+
+blade upper-left
+handle lower-right.
+
+========================================================
+TEST 12
+
+First flip:
+
+knife lifts up
+arcs toward upper-right
+rotates end-over-end
+passes vertical
+reaches high horizontal/diagonal apex
+rotates downward
+lands on SAME diagonal rest point.
+
+It must remain visible during entire movement.
+
+========================================================
+TEST 13
+
+Short rest occurs.
+
+========================================================
+TEST 14
+
+Second smaller flip occurs.
+
+It must have:
+
+lower height
+shorter duration
+same polished end-over-end behavior.
+
+========================================================
+TEST 15
+
+Knife finishes:
+
+blade upper-left
+handle lower-right
+resting across checkerboard pillow.
+
+========================================================
+TEST 16
+
+Confetti/light streaks start AFTER final landing.
+
+========================================================
+TEST 17
+
+Level Complete panel appears only after celebration.
+
+========================================================
+TEST 18
+
+Press NEXT.
+
+Expected:
+
+new level begins normally.
+
+Top bars reset.
+
+Knife works.
+
+No stale knife reference.
+
+========================================================
+TEST 19
+
+Press REPLAY.
+
+Expected:
+
+same level resets completely.
+
+========================================================
+TEST 20
+
+Home
+→ Main Menu
+→ Play
+→ use knife.
+
+Expected:
+
+ZERO destroyed KnifeController error.
+
+========================================================
+TEST 21
+
+Check Console.
+
+Final result must have:
+
+ZERO compiler errors
+ZERO MissingReferenceException
+ZERO NullReferenceException
+ZERO MissingReference errors caused by this system.
+
+========================================================
+STRICT DO-NOT-DO LIST
+========================================================
+
+DO NOT:
+
+- solve destroyed KnifeController only with a null check
+- keep stale knife references
+- destroy active knife before celebration
+- create a fake celebration knife
+- let FoodSpawner ending trigger win
+- start win when one target is incomplete
+- force UI bars to 100% artificially
+- count every segmented slice as a whole fruit accidentally
+- start animation before final bar visibly fills
+- leave fruits moving through end animation
+- move knife using transform.forward
+- move knife deep along world Z
+- allow knife to leave camera
+- use uncontrolled physics for the knife flips
+- mix world-space and local-space coordinates incorrectly
+- show Level Complete panel before celebration ends
+- create duplicate GameManagers/KnifeManagers/TargetManagers
+- manually require me to assign missing references afterward
+
+========================================================
+FINAL PRIORITY ORDER
+========================================================
+
+FIX IN THIS ORDER:
+
+1. Destroyed KnifeController lifecycle/reference bug.
+
+2. Ensure exactly one live ActiveKnife.
+
+3. Fix individual top fruit target counting.
+
+4. Fix visual target progress bars.
+
+5. Fix segmented-food objective counting.
+
+6. Remove all premature win triggers.
+
+7. Guarantee enough target fruits spawn.
+
+8. Wait for final bar to visually reach 100%.
+
+9. Stop spawning and clean incoming food.
+
+10. Build checkerboard gold-trim pillow.
+
+11. Implement exact first large knife flip.
+
+12. Implement short rest.
+
+13. Implement exact second smaller flip.
+
+14. Final diagonal knife landing.
+
+15. Celebration confetti/light streaks.
+
+16. Level Complete panel animation.
+
+17. Validate Next.
+
+18. Validate Replay.
+
+19. Validate Home -> Play.
+
+20. Verify clean Console.
+
+DO NOT STOP AFTER A PARTIAL FIX.
+
+The task is complete only when the full gameplay loop works correctly
+and the completion animation follows the exact sequence described above.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-15T11:11:47+05:00.
+</ADDITIONAL_METADATA>

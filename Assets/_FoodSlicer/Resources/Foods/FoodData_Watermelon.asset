@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abe77ce4ef7c5bb418a4939442eb736d, type: 3}
+  m_Name: FoodData_Watermelon
+  m_EditorClassIdentifier: 
+  foodType: 2
+  foodName: Watermelon
+  category: 0
+  icon: {fileID: 21300000, guid: 22c49cf05bbc6764b9d6abb9b823df71, type: 3}
+  uncutPrefab: {fileID: 1842768978571819291, guid: fd4ef593953573549bfeaf9cab24768b,
+    type: 3}
+  slicePiecePrefab: {fileID: 5937712427489150143, guid: 2aa3bb66ff9ac984ab1eb3547637d929,
+    type: 3}
+  totalSegments: 4
+  sliceSpacing: 0.35
+  scorePerSegment: 15
+  sliceResistance: 0.2
+  visualScale: {x: 1, y: 1, z: 1}
+  boardHeightOffset: 0
+  exteriorColor: {r: 1, g: 1, b: 1, a: 1}
+  interiorColor: {r: 1, g: 1, b: 1, a: 1}
+  particleColor: {r: 0.95, g: 0.2, b: 0.25, a: 1}
+  particleAmount: 12
+  particleScale: 0.15

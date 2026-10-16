@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 016d87ce2aa92f240946417bb5aa7f91, type: 3}
+  m_Name: KnifeData_3
+  m_EditorClassIdentifier: 
+  knifeName: Fantasy Cyan Blade
+  knifeIndex: 3
+  icon: {fileID: 21300000, guid: a27d9c3d5b8db7a45a55109eb1c8f373, type: 3}
+  knifePrefab: {fileID: 8410334563222744055, guid: cddc44661b554cc488850cfa5cb4b5da,
+    type: 3}
+  price: 1200
+  unlockedByDefault: 0
+  bladeColor: {r: 1, g: 1, b: 1, a: 1}
+  handleColor: {r: 0.15, g: 0.15, b: 0.15, a: 1}
+  chopSpeedMultiplier: 1
+  bladeLength: 1.2

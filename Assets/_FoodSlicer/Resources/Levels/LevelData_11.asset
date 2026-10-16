@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1646ef867570c6549825951e72aafaac, type: 3}
+  m_Name: LevelData_11
+  m_EditorClassIdentifier: 
+  levelNumber: 11
+  levelName: Sweet Bakery 11
+  difficulty: 1
+  conveyorSpeed: 3.0500002
+  speedIncreasePerCut: 0.005
+  maxConveyorSpeed: 4.2
+  spawnSpacing: 1.7
+  spawnDistanceZ: 22
+  targetObjectives:
+  - foodType: 8
+    requiredCount: 8
+    countMode: 0
+  - foodType: 9
+    requiredCount: 8
+    countMode: 0
+  - foodType: 10
+    requiredCount: 8
+    countMode: 0
+  foodSequence:
+  - {fileID: 11400000, guid: 14b79363e5f924e4e8c2d10b6968cbdc, type: 2}
+  - {fileID: 11400000, guid: f963de4035c5aec4ca964a8bf9bf6c01, type: 2}
+  - {fileID: 11400000, guid: 644dcbc868f01eb4fa0639fb2cc28b01, type: 2}
+  - {fileID: 11400000, guid: 1ae968ca816900240b705300a4cdcd4d, type: 2}
+  - {fileID: 11400000, guid: 14b79363e5f924e4e8c2d10b6968cbdc, type: 2}
+  - {fileID: 11400000, guid: f963de4035c5aec4ca964a8bf9bf6c01, type: 2}
+  - {fileID: 11400000, guid: 644dcbc868f01eb4fa0639fb2cc28b01, type: 2}
+  - {fileID: 11400000, guid: 1ae968ca816900240b705300a4cdcd4d, type: 2}
+  - {fileID: 11400000, guid: 14b79363e5f924e4e8c2d10b6968cbdc, type: 2}
+  - {fileID: 11400000, guid: f963de4035c5aec4ca964a8bf9bf6c01, type: 2}
+  - {fileID: 11400000, guid: 644dcbc868f01eb4fa0639fb2cc28b01, type: 2}
+  - {fileID: 11400000, guid: 1ae968ca816900240b705300a4cdcd4d, type: 2}
+  - {fileID: 11400000, guid: 14b79363e5f924e4e8c2d10b6968cbdc, type: 2}
+  - {fileID: 11400000, guid: f963de4035c5aec4ca964a8bf9bf6c01, type: 2}
+  - {fileID: 11400000, guid: 644dcbc868f01eb4fa0639fb2cc28b01, type: 2}
+  - {fileID: 11400000, guid: 1ae968ca816900240b705300a4cdcd4d, type: 2}
+  wrongFoodPenaltyMode: 1
+  boardHitMode: 0
+  boardPenaltyScore: 15
+  missPenaltyMode: 1
+  rewardCoins: 90
+  hasUnlockReward: 0
+  unlockRewardName: Chef Trophy 11
+  unlockRewardIcon: {fileID: 21300000, guid: 3e836c9bb03ce094bb7c46ae8f46be0f, type: 3}
+  topBackgroundColor: {r: 0.35, g: 0.75, b: 1, a: 1}
+  bottomBackgroundColor: {r: 0.9, g: 0.95, b: 1, a: 1}

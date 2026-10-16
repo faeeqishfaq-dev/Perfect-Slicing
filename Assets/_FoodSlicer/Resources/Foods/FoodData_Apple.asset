@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abe77ce4ef7c5bb418a4939442eb736d, type: 3}
+  m_Name: FoodData_Apple
+  m_EditorClassIdentifier: 
+  foodType: 0
+  foodName: Apple
+  category: 0
+  icon: {fileID: 21300000, guid: fd8cf02eff470cb43b2fd07db39dabb0, type: 3}
+  uncutPrefab: {fileID: 5144858623010908723, guid: 7118867a0a0cca5469d879a5d815f600,
+    type: 3}
+  slicePiecePrefab: {fileID: 1904618015948757238, guid: 3a74092268f971a4f94e5ae23f1acc0c,
+    type: 3}
+  totalSegments: 4
+  sliceSpacing: 0.35
+  scorePerSegment: 10
+  sliceResistance: 0.2
+  visualScale: {x: 1, y: 1, z: 1}
+  boardHeightOffset: 0
+  exteriorColor: {r: 1, g: 1, b: 1, a: 1}
+  interiorColor: {r: 1, g: 1, b: 1, a: 1}
+  particleColor: {r: 0.9, g: 0.15, b: 0.15, a: 1}
+  particleAmount: 12
+  particleScale: 0.15

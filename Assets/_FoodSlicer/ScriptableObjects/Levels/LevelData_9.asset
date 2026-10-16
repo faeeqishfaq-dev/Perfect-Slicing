@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1646ef867570c6549825951e72aafaac, type: 3}
+  m_Name: LevelData_9
+  m_EditorClassIdentifier: 
+  levelNumber: 9
+  levelName: Veggie Harvest 9
+  difficulty: 1
+  conveyorSpeed: 2.75
+  speedIncreasePerCut: 0.005
+  maxConveyorSpeed: 4.2
+  spawnSpacing: 1.8
+  spawnDistanceZ: 22
+  targetObjectives:
+  - foodType: 6
+    requiredCount: 8
+    countMode: 0
+  - foodType: 7
+    requiredCount: 8
+    countMode: 0
+  - foodType: 5
+    requiredCount: 8
+    countMode: 0
+  foodSequence:
+  - {fileID: 11400000, guid: 600c581dad9ce5746a09e035ffa0997d, type: 2}
+  - {fileID: 11400000, guid: d774228200fe20d4a856d248e7494ef2, type: 2}
+  - {fileID: 11400000, guid: 72141f44f7d5c0543ad2edd0d012274a, type: 2}
+  - {fileID: 11400000, guid: 0e781d4ec518b5a4f92ceb5a7f8b3a97, type: 2}
+  - {fileID: 11400000, guid: 600c581dad9ce5746a09e035ffa0997d, type: 2}
+  - {fileID: 11400000, guid: d774228200fe20d4a856d248e7494ef2, type: 2}
+  - {fileID: 11400000, guid: 72141f44f7d5c0543ad2edd0d012274a, type: 2}
+  - {fileID: 11400000, guid: 0e781d4ec518b5a4f92ceb5a7f8b3a97, type: 2}
+  - {fileID: 11400000, guid: 600c581dad9ce5746a09e035ffa0997d, type: 2}
+  - {fileID: 11400000, guid: d774228200fe20d4a856d248e7494ef2, type: 2}
+  - {fileID: 11400000, guid: 72141f44f7d5c0543ad2edd0d012274a, type: 2}
+  - {fileID: 11400000, guid: 0e781d4ec518b5a4f92ceb5a7f8b3a97, type: 2}
+  - {fileID: 11400000, guid: 600c581dad9ce5746a09e035ffa0997d, type: 2}
+  - {fileID: 11400000, guid: d774228200fe20d4a856d248e7494ef2, type: 2}
+  - {fileID: 11400000, guid: 72141f44f7d5c0543ad2edd0d012274a, type: 2}
+  - {fileID: 11400000, guid: 0e781d4ec518b5a4f92ceb5a7f8b3a97, type: 2}
+  wrongFoodPenaltyMode: 2
+  boardHitMode: 1
+  boardPenaltyScore: 15
+  missPenaltyMode: 1
+  rewardCoins: 80
+  hasUnlockReward: 0
+  unlockRewardName: Chef Trophy 9
+  unlockRewardIcon: {fileID: 21300000, guid: 3e836c9bb03ce094bb7c46ae8f46be0f, type: 3}
+  topBackgroundColor: {r: 0.35, g: 0.75, b: 1, a: 1}
+  bottomBackgroundColor: {r: 0.9, g: 0.95, b: 1, a: 1}
